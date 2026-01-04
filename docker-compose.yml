@@ -15,7 +15,7 @@ services:
       - ollama-docker
 
   ollama:
-    image: docker.io/ollama/ollama:latest
+    image: intelanalytics/ipex-llm-inference-cpp-xpu:latest
     ports:
       - 7869:11434
     volumes:
@@ -26,8 +26,23 @@ services:
     tty: true
     restart: always
     environment:
+      - DEVICE=iGPU
+      - ZES_ENABLE_SYSMAN=1
+      - ONEAPI_DEVICE_SELECTOR=level_zero:0
+      - OLLAMA_NUM_GPU=999
       - OLLAMA_KEEP_ALIVE=24h
       - OLLAMA_HOST=0.0.0.0
+    # Critical: give the container access to the Intel iGPU
+    devices:
+      - /dev/dri:/dev/dri
+    # Optional but often needed for GPU workloads
+    privileged: true
+    # Override entrypoint/command to init IPEX-LLM and start Ollama
+    command: >
+      bash -c "cd /llm/scripts &&
+        source ipex-llm-init --gpu --device $$DEVICE &&
+        init-ollama &&
+        ./ollama serve"
     networks:
       - ollama-docker
 
@@ -57,4 +72,3 @@ services:
 networks:
   ollama-docker:
     external: false
-  
